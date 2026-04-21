@@ -1,448 +1,257 @@
-"""
-AES (Advanced Encryption Standard) - Implémentation Python pure
-Sans aucune librairie de cryptographie.
-Supporte AES-128, AES-192 et AES-256.
+# =====================================================================
+# IMPLÉMENTATION AES-128 (Advanced Encryption Standard) - PURE PYTHON
+# =====================================================================
 
-Usage:
-    aes = AES(key)
-    chiffré = aes.encrypt(texte_clair)
-    clair   = aes.decrypt(chiffré)
-"""
-
-import os
-
-# ─────────────────────────────────────────────────────────────────────────────
-# TABLE S-BOX (SubBytes)
-# ─────────────────────────────────────────────────────────────────────────────
+# --- TABLES DE CONSTANTES AES ---
 SBOX = [
-    0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5,
-    0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
-    0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0,
-    0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
-    0xB7, 0xFD, 0x93, 0x26, 0x36, 0x3F, 0xF7, 0xCC,
-    0x34, 0xA5, 0xE5, 0xF1, 0x71, 0xD8, 0x31, 0x15,
-    0x04, 0xC7, 0x23, 0xC3, 0x18, 0x96, 0x05, 0x9A,
-    0x07, 0x12, 0x80, 0xE2, 0xEB, 0x27, 0xB2, 0x75,
-    0x09, 0x83, 0x2C, 0x1A, 0x1B, 0x6E, 0x5A, 0xA0,
-    0x52, 0x3B, 0xD6, 0xB3, 0x29, 0xE3, 0x2F, 0x84,
-    0x53, 0xD1, 0x00, 0xED, 0x20, 0xFC, 0xB1, 0x5B,
-    0x6A, 0xCB, 0xBE, 0x39, 0x4A, 0x4C, 0x58, 0xCF,
-    0xD0, 0xEF, 0xAA, 0xFB, 0x43, 0x4D, 0x33, 0x85,
-    0x45, 0xF9, 0x02, 0x7F, 0x50, 0x3C, 0x9F, 0xA8,
-    0x51, 0xA3, 0x40, 0x8F, 0x92, 0x9D, 0x38, 0xF5,
-    0xBC, 0xB6, 0xDA, 0x21, 0x10, 0xFF, 0xF3, 0xD2,
-    0xCD, 0x0C, 0x13, 0xEC, 0x5F, 0x97, 0x44, 0x17,
-    0xC4, 0xA7, 0x7E, 0x3D, 0x64, 0x5D, 0x19, 0x73,
-    0x60, 0x81, 0x4F, 0xDC, 0x22, 0x2A, 0x90, 0x88,
-    0x46, 0xEE, 0xB8, 0x14, 0xDE, 0x5E, 0x0B, 0xDB,
-    0xE0, 0x32, 0x3A, 0x0A, 0x49, 0x06, 0x24, 0x5C,
-    0xC2, 0xD3, 0xAC, 0x62, 0x91, 0x95, 0xE4, 0x79,
-    0xE7, 0xC8, 0x37, 0x6D, 0x8D, 0xD5, 0x4E, 0xA9,
-    0x6C, 0x56, 0xF4, 0xEA, 0x65, 0x7A, 0xAE, 0x08,
-    0xBA, 0x78, 0x25, 0x2E, 0x1C, 0xA6, 0xB4, 0xC6,
-    0xE8, 0xDD, 0x74, 0x1F, 0x4B, 0xBD, 0x8B, 0x8A,
-    0x70, 0x3E, 0xB5, 0x66, 0x48, 0x03, 0xF6, 0x0E,
-    0x61, 0x35, 0x57, 0xB9, 0x86, 0xC1, 0x1D, 0x9E,
-    0xE1, 0xF8, 0x98, 0x11, 0x69, 0xD9, 0x8E, 0x94,
-    0x9B, 0x1E, 0x87, 0xE9, 0xCE, 0x55, 0x28, 0xDF,
-    0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68,
-    0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16,
+    0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
+    0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
+    0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
+    0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a, 0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75,
+    0x09, 0x83, 0x2c, 0x1a, 0x1b, 0x6e, 0x5a, 0xa0, 0x52, 0x3b, 0xd6, 0xb3, 0x29, 0xe3, 0x2f, 0x84,
+    0x53, 0xd1, 0x00, 0xed, 0x20, 0xfc, 0xb1, 0x5b, 0x6a, 0xcb, 0xbe, 0x39, 0x4a, 0x4c, 0x58, 0xcf,
+    0xd0, 0xef, 0xaa, 0xfb, 0x43, 0x4d, 0x33, 0x85, 0x45, 0xf9, 0x02, 0x7f, 0x50, 0x3c, 0x9f, 0xa8,
+    0x51, 0xa3, 0x40, 0x8f, 0x92, 0x9d, 0x38, 0xf5, 0xbc, 0xb6, 0xda, 0x21, 0x10, 0xff, 0xf3, 0xd2,
+    0xcd, 0x0c, 0x13, 0xec, 0x5f, 0x97, 0x44, 0x17, 0xc4, 0xa7, 0x7e, 0x3d, 0x64, 0x5d, 0x19, 0x73,
+    0x60, 0x81, 0x4f, 0xdc, 0x22, 0x2a, 0x90, 0x88, 0x46, 0xee, 0xb8, 0x14, 0xde, 0x5e, 0x0b, 0xdb,
+    0xe0, 0x32, 0x3a, 0x0a, 0x49, 0x06, 0x24, 0x5c, 0xc2, 0xd3, 0xac, 0x62, 0x91, 0x95, 0xe4, 0x79,
+    0xe7, 0xc8, 0x37, 0x6d, 0x8d, 0xd5, 0x4e, 0xa9, 0x6c, 0x56, 0xf4, 0xea, 0x65, 0x7a, 0xae, 0x08,
+    0xba, 0x78, 0x25, 0x2e, 0x1c, 0xa6, 0xb4, 0xc6, 0xe8, 0xdd, 0x74, 0x1f, 0x4b, 0xbd, 0x8b, 0x8a,
+    0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e, 0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e,
+    0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf,
+    0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16
 ]
 
-# ─────────────────────────────────────────────────────────────────────────────
-# TABLE S-BOX INVERSE (InvSubBytes)
-# ─────────────────────────────────────────────────────────────────────────────
 INV_SBOX = [
-    0x52, 0x09, 0x6A, 0xD5, 0x30, 0x36, 0xA5, 0x38,
-    0xBF, 0x40, 0xA3, 0x9E, 0x81, 0xF3, 0xD7, 0xFB,
-    0x7C, 0xE3, 0x39, 0x82, 0x9B, 0x2F, 0xFF, 0x87,
-    0x34, 0x8E, 0x43, 0x44, 0xC4, 0xDE, 0xE9, 0xCB,
-    0x54, 0x7B, 0x94, 0x32, 0xA6, 0xC2, 0x23, 0x3D,
-    0xEE, 0x4C, 0x95, 0x0B, 0x42, 0xFA, 0xC3, 0x4E,
-    0x08, 0x2E, 0xA1, 0x66, 0x28, 0xD9, 0x24, 0xB2,
-    0x76, 0x5B, 0xA2, 0x49, 0x6D, 0x8B, 0xD1, 0x25,
-    0x72, 0xF8, 0xF6, 0x64, 0x86, 0x68, 0x98, 0x16,
-    0xD4, 0xA4, 0x5C, 0xCC, 0x5D, 0x65, 0xB6, 0x92,
-    0x6C, 0x70, 0x48, 0x50, 0xFD, 0xED, 0xB9, 0xDA,
-    0x5E, 0x15, 0x46, 0x57, 0xA7, 0x8D, 0x9D, 0x84,
-    0x90, 0xD8, 0xAB, 0x00, 0x8C, 0xBC, 0xD3, 0x0A,
-    0xF7, 0xE4, 0x58, 0x05, 0xB8, 0xB3, 0x45, 0x06,
-    0xD0, 0x2C, 0x1E, 0x8F, 0xCA, 0x3F, 0x0F, 0x02,
-    0xC1, 0xAF, 0xBD, 0x03, 0x01, 0x13, 0x8A, 0x6B,
-    0x3A, 0x91, 0x11, 0x41, 0x4F, 0x67, 0xDC, 0xEA,
-    0x97, 0xF2, 0xCF, 0xCE, 0xF0, 0xB4, 0xE6, 0x73,
-    0x96, 0xAC, 0x74, 0x22, 0xE7, 0xAD, 0x35, 0x85,
-    0xE2, 0xF9, 0x37, 0xE8, 0x1C, 0x75, 0xDF, 0x6E,
-    0x47, 0xF1, 0x1A, 0x71, 0x1D, 0x29, 0xC5, 0x89,
-    0x6F, 0xB7, 0x62, 0x0E, 0xAA, 0x18, 0xBE, 0x1B,
-    0xFC, 0x56, 0x3E, 0x4B, 0xC6, 0xD2, 0x79, 0x20,
-    0x9A, 0xDB, 0xC0, 0xFE, 0x78, 0xCD, 0x5A, 0xF4,
-    0x1F, 0xDD, 0xA8, 0x33, 0x88, 0x07, 0xC7, 0x31,
-    0xB1, 0x12, 0x10, 0x59, 0x27, 0x80, 0xEC, 0x5F,
-    0x60, 0x51, 0x7F, 0xA9, 0x19, 0xB5, 0x4A, 0x0D,
-    0x2D, 0xE5, 0x7A, 0x9F, 0x93, 0xC9, 0x9C, 0xEF,
-    0xA0, 0xE0, 0x3B, 0x4D, 0xAE, 0x2A, 0xF5, 0xB0,
-    0xC8, 0xEB, 0xBB, 0x3C, 0x83, 0x53, 0x99, 0x61,
-    0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26,
-    0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D,
+    0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
+    0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb,
+    0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d, 0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e,
+    0x08, 0x2e, 0xa1, 0x66, 0x28, 0xd9, 0x24, 0xb2, 0x76, 0x5b, 0xa2, 0x49, 0x6d, 0x8b, 0xd1, 0x25,
+    0x72, 0xf8, 0xf6, 0x64, 0x86, 0x68, 0x98, 0x16, 0xd4, 0xa4, 0x5c, 0xcc, 0x5d, 0x65, 0xb6, 0x92,
+    0x6c, 0x70, 0x48, 0x50, 0xfd, 0xed, 0xb9, 0xda, 0x5e, 0x15, 0x46, 0x57, 0xa7, 0x8d, 0x9d, 0x84,
+    0x90, 0xd8, 0xab, 0x00, 0x8c, 0xbc, 0xd3, 0x0a, 0xf7, 0xe4, 0x58, 0x05, 0xb8, 0xb3, 0x45, 0x06,
+    0xd0, 0x2c, 0x1e, 0x8f, 0xca, 0x3f, 0x0f, 0x02, 0xc1, 0xaf, 0xbd, 0x03, 0x01, 0x13, 0x8a, 0x6b,
+    0x3a, 0x91, 0x11, 0x41, 0x4f, 0x67, 0xdc, 0xea, 0x97, 0xf2, 0xcf, 0xce, 0xf0, 0xb4, 0xe6, 0x73,
+    0x96, 0xac, 0x74, 0x22, 0xe7, 0xad, 0x35, 0x85, 0xe2, 0xf9, 0x37, 0xe8, 0x1c, 0x75, 0xdf, 0x6e,
+    0x47, 0xf1, 0x1a, 0x71, 0x1d, 0x29, 0xc5, 0x89, 0x6f, 0xb7, 0x62, 0x0e, 0xaa, 0x18, 0xbe, 0x1b,
+    0xfc, 0x56, 0x3e, 0x4b, 0xc6, 0xd2, 0x79, 0x20, 0x9a, 0xdb, 0xc0, 0xfe, 0x78, 0xcd, 0x5a, 0xf4,
+    0x1f, 0xdd, 0xa8, 0x33, 0x88, 0x07, 0xc7, 0x31, 0xb1, 0x12, 0x10, 0x59, 0x27, 0x80, 0xec, 0x5f,
+    0x60, 0x51, 0x7f, 0xa9, 0x19, 0xb5, 0x4a, 0x0d, 0x2d, 0xe5, 0x7a, 0x9f, 0x93, 0xc9, 0x9c, 0xef,
+    0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61,
+    0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d
 ]
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CONSTANTES DE TOUR (Round Constants) pour KeyExpansion
-# ─────────────────────────────────────────────────────────────────────────────
-RCON = [
-    0x00,  # non utilisé (index 0)
-    0x01, 0x02, 0x04, 0x08, 0x10,
-    0x20, 0x40, 0x80, 0x1B, 0x36,
-]
+# Constantes de ronde (Round Constants)
+RCON = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36]
 
-# ─────────────────────────────────────────────────────────────────────────────
-# TABLES DE MULTIPLICATION DANS GF(2^8) pour MixColumns
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _xtime(a):
-    """Multiplication par 2 dans GF(2^8) (mod 0x11B)."""
-    return ((a << 1) ^ 0x1B) & 0xFF if (a & 0x80) else (a << 1) & 0xFF
-
-def _gmul(a, b):
-    """Multiplication générale dans GF(2^8) par algorithme 'peasant russe'."""
+# --- FONCTIONS MATHÉMATIQUES (Champs de Galois GF(2^8)) ---
+def gmul(a, b):
+    """Multiplication dans le corps de Galois GF(2^8)."""
     p = 0
     for _ in range(8):
         if b & 1:
             p ^= a
-        hi = a & 0x80
+        hi_bit_set = a & 0x80
         a = (a << 1) & 0xFF
-        if hi:
+        if hi_bit_set:
             a ^= 0x1B
         b >>= 1
     return p
 
-# Tables précalculées pour MixColumns (×2, ×3) et InvMixColumns (×9, ×11, ×13, ×14)
-MUL2  = [_gmul(i, 2)  for i in range(256)]
-MUL3  = [_gmul(i, 3)  for i in range(256)]
-MUL9  = [_gmul(i, 9)  for i in range(256)]
-MUL11 = [_gmul(i, 11) for i in range(256)]
-MUL13 = [_gmul(i, 13) for i in range(256)]
-MUL14 = [_gmul(i, 14) for i in range(256)]
+# --- FORMATAGE ET PADDING ---
+def text_to_blocks(text):
+    """Convertit un texte en blocs de 16 octets avec padding PKCS#7."""
+    pad_len = 16 - (len(text.encode('utf-8')) % 16)
+    padded_text = text.encode('utf-8') + bytes([pad_len] * pad_len)
+    
+    blocks = []
+    for i in range(0, len(padded_text), 16):
+        blocks.append(list(padded_text[i:i+16]))
+    return blocks
 
+def blocks_to_text(blocks):
+    """Convertit des blocs de 16 octets en texte en retirant le padding."""
+    flat_bytes = [b for block in blocks for b in block]
+    pad_len = flat_bytes[-1]
+    
+    # Vérification basique du padding
+    if pad_len < 1 or pad_len > 16:
+        return "[Erreur de décodage : Clé incorrecte ou données corrompues]"
+        
+    unpadded_bytes = bytes(flat_bytes[:-pad_len])
+    
+    try:
+        return unpadded_bytes.decode('utf-8')
+    except UnicodeDecodeError:
+        return "[Erreur de décodage : La clé est probablement incorrecte]"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# HELPERS : état AES = liste plate de 16 octets (colonne-major)
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _bytes_to_state(block: bytes) -> list:
-    """Convertit 16 octets en état AES (colonne-major)."""
-    s = [0] * 16
-    for r in range(4):
-        for c in range(4):
-            s[r + 4 * c] = block[r + 4 * c]
-    return s
-
-def _state_to_bytes(state: list) -> bytes:
-    """Reconvertit l'état AES en 16 octets."""
-    return bytes(state)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# ÉTAPES DU CHIFFREMENT
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _add_round_key(state: list, round_key: list) -> list:
-    """XOR entre l'état et la sous-clé de tour."""
-    return [state[i] ^ round_key[i] for i in range(16)]
-
-def _sub_bytes(state: list) -> list:
-    """Substitution non-linéaire via S-Box."""
-    return [SBOX[b] for b in state]
-
-def _inv_sub_bytes(state: list) -> list:
-    """Substitution inverse via S-Box inverse."""
-    return [INV_SBOX[b] for b in state]
-
-def _shift_rows(state: list) -> list:
-    """Décalage cyclique des lignes vers la gauche."""
-    s = state[:]
-    # Ligne 0 : pas de décalage
-    # Ligne 1 : décalage de 1
-    s[1],  s[5],  s[9],  s[13] = state[5],  state[9],  state[13], state[1]
-    # Ligne 2 : décalage de 2
-    s[2],  s[6],  s[10], s[14] = state[10], state[14], state[2],  state[6]
-    # Ligne 3 : décalage de 3
-    s[3],  s[7],  s[11], s[15] = state[15], state[3],  state[7],  state[11]
-    return s
-
-def _inv_shift_rows(state: list) -> list:
-    """Décalage cyclique des lignes vers la droite (inverse)."""
-    s = state[:]
-    # Ligne 1 : décalage de 3 à droite (= 1 à gauche inversé)
-    s[1],  s[5],  s[9],  s[13] = state[13], state[1],  state[5],  state[9]
-    # Ligne 2 : décalage de 2
-    s[2],  s[6],  s[10], s[14] = state[10], state[14], state[2],  state[6]
-    # Ligne 3 : décalage de 1 à droite
-    s[3],  s[7],  s[11], s[15] = state[7],  state[11], state[15], state[3]
-    return s
-
-def _mix_columns(state: list) -> list:
-    """Mélange linéaire des colonnes dans GF(2^8)."""
-    s = state[:]
-    for c in range(4):
-        i = c * 4
-        a = state[i:i+4]
-        s[i]   = MUL2[a[0]] ^ MUL3[a[1]] ^ a[2]       ^ a[3]
-        s[i+1] = a[0]       ^ MUL2[a[1]] ^ MUL3[a[2]] ^ a[3]
-        s[i+2] = a[0]       ^ a[1]       ^ MUL2[a[2]]  ^ MUL3[a[3]]
-        s[i+3] = MUL3[a[0]] ^ a[1]       ^ a[2]        ^ MUL2[a[3]]
-    return s
-
-def _inv_mix_columns(state: list) -> list:
-    """Mélange inverse des colonnes dans GF(2^8)."""
-    s = state[:]
-    for c in range(4):
-        i = c * 4
-        a = state[i:i+4]
-        s[i]   = MUL14[a[0]] ^ MUL11[a[1]] ^ MUL13[a[2]] ^ MUL9[a[3]]
-        s[i+1] = MUL9[a[0]]  ^ MUL14[a[1]] ^ MUL11[a[2]] ^ MUL13[a[3]]
-        s[i+2] = MUL13[a[0]] ^ MUL9[a[1]]  ^ MUL14[a[2]] ^ MUL11[a[3]]
-        s[i+3] = MUL11[a[0]] ^ MUL13[a[1]] ^ MUL9[a[2]]  ^ MUL14[a[3]]
-    return s
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# EXPANSION DE CLÉ (Key Schedule)
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _key_expansion(key: bytes) -> list:
-    """
-    Génère toutes les sous-clés de tour à partir de la clé principale.
-    Retourne une liste de (Nr+1) sous-clés, chacune de 16 octets.
-    Supporte AES-128 (16), AES-192 (24) et AES-256 (32) octets.
-    """
-    key_len = len(key)
-    if key_len == 16:
-        Nk, Nr = 4, 10
-    elif key_len == 24:
-        Nk, Nr = 6, 12
-    elif key_len == 32:
-        Nk, Nr = 8, 14
-    else:
-        raise ValueError("Longueur de clé invalide : 16, 24 ou 32 octets requis.")
-
-    # W : liste de mots de 4 octets
-    W = []
-    for i in range(Nk):
-        W.append(list(key[4*i : 4*i+4]))
-
-    total_words = 4 * (Nr + 1)
-    i = Nk
-    while len(W) < total_words:
-        temp = W[i - 1][:]
-        if i % Nk == 0:
-            # RotWord + SubWord + XOR Rcon
-            temp = [SBOX[temp[1]] ^ RCON[i // Nk],
-                    SBOX[temp[2]],
-                    SBOX[temp[3]],
-                    SBOX[temp[0]]]
-        elif Nk > 6 and (i % Nk) == 4:
+# --- GÉNÉRATION DES CLÉS (Key Expansion) ---
+def key_expansion(key_bytes):
+    """Génère les 11 clés de ronde (16 octets chacune) pour AES-128."""
+    w = list(key_bytes)
+    for i in range(4, 44):
+        temp = w[(i-1)*4 : i*4]
+        if i % 4 == 0:
+            # RotWord
+            temp = temp[1:] + temp[:1]
+            # SubWord
             temp = [SBOX[b] for b in temp]
-        W.append([W[i - Nk][j] ^ temp[j] for j in range(4)])
-        i += 1
+            # Rcon
+            temp[0] ^= RCON[i//4 - 1]
+        for j in range(4):
+            w.append(w[(i-4)*4 + j] ^ temp[j])
+            
+    return [w[i*16:(i+1)*16] for i in range(11)]
 
-    # Reconvertit en sous-clés de 16 octets (4 mots par sous-clé)
-    round_keys = []
-    for r in range(Nr + 1):
-        rk = []
-        for c in range(4):
-            rk.extend(W[r * 4 + c])
-        round_keys.append(rk)
-    return round_keys
+# --- ÉTAPES DE RONDE AES ---
+def sub_bytes(state, inv=False):
+    box = INV_SBOX if inv else SBOX
+    return [box[b] for b in state]
 
+def shift_rows(state, inv=False):
+    s = state[:]
+    if not inv:
+        s[1], s[5], s[9], s[13] = s[5], s[9], s[13], s[1]
+        s[2], s[6], s[10], s[14] = s[10], s[14], s[2], s[6]
+        s[3], s[7], s[11], s[15] = s[15], s[3], s[7], s[11]
+    else:
+        s[1], s[5], s[9], s[13] = s[13], s[1], s[5], s[9]
+        s[2], s[6], s[10], s[14] = s[10], s[14], s[2], s[6]
+        s[3], s[7], s[11], s[15] = s[7], s[11], s[15], s[3]
+    return s
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CHIFFREMENT / DÉCHIFFREMENT D'UN BLOC (16 octets)
-# ─────────────────────────────────────────────────────────────────────────────
+def mix_columns(state, inv=False):
+    new_state = [0] * 16
+    for c in range(4):
+        col = state[c*4 : c*4+4]
+        if not inv:
+            new_state[c*4+0] = gmul(0x02, col[0]) ^ gmul(0x03, col[1]) ^ col[2] ^ col[3]
+            new_state[c*4+1] = col[0] ^ gmul(0x02, col[1]) ^ gmul(0x03, col[2]) ^ col[3]
+            new_state[c*4+2] = col[0] ^ col[1] ^ gmul(0x02, col[2]) ^ gmul(0x03, col[3])
+            new_state[c*4+3] = gmul(0x03, col[0]) ^ col[1] ^ col[2] ^ gmul(0x02, col[3])
+        else:
+            new_state[c*4+0] = gmul(0x0e, col[0]) ^ gmul(0x0b, col[1]) ^ gmul(0x0d, col[2]) ^ gmul(0x09, col[3])
+            new_state[c*4+1] = gmul(0x09, col[0]) ^ gmul(0x0e, col[1]) ^ gmul(0x0b, col[2]) ^ gmul(0x0d, col[3])
+            new_state[c*4+2] = gmul(0x0d, col[0]) ^ gmul(0x09, col[1]) ^ gmul(0x0e, col[2]) ^ gmul(0x0b, col[3])
+            new_state[c*4+3] = gmul(0x0b, col[0]) ^ gmul(0x0d, col[1]) ^ gmul(0x09, col[2]) ^ gmul(0x0e, col[3])
+    return new_state
 
-def _encrypt_block(block: bytes, round_keys: list) -> bytes:
-    """Chiffre un bloc de 16 octets avec les sous-clés données."""
-    Nr = len(round_keys) - 1
-    state = _bytes_to_state(block)
+def add_round_key(state, round_key):
+    return [s ^ k for s, k in zip(state, round_key)]
 
-    state = _add_round_key(state, round_keys[0])
+# --- MOTEUR DE BLOC AES ---
+def encrypt_block(block, round_keys):
+    state = add_round_key(block, round_keys[0])
+    for i in range(1, 10):
+        state = sub_bytes(state)
+        state = shift_rows(state)
+        state = mix_columns(state)
+        state = add_round_key(state, round_keys[i])
+    state = sub_bytes(state)
+    state = shift_rows(state)
+    state = add_round_key(state, round_keys[10])
+    return state
 
-    for r in range(1, Nr):
-        state = _sub_bytes(state)
-        state = _shift_rows(state)
-        state = _mix_columns(state)
-        state = _add_round_key(state, round_keys[r])
+def decrypt_block(block, round_keys):
+    state = add_round_key(block, round_keys[10])
+    for i in range(9, 0, -1):
+        state = shift_rows(state, inv=True)
+        state = sub_bytes(state, inv=True)
+        state = add_round_key(state, round_keys[i])
+        state = mix_columns(state, inv=True)
+    state = shift_rows(state, inv=True)
+    state = sub_bytes(state, inv=True)
+    state = add_round_key(state, round_keys[0])
+    return state
 
-    # Tour final (sans MixColumns)
-    state = _sub_bytes(state)
-    state = _shift_rows(state)
-    state = _add_round_key(state, round_keys[Nr])
+# --- FONCTIONS PRINCIPALES ---
+def encrypt_aes(plaintext, key_hex):
+    key_bytes = bytes.fromhex(key_hex)
+    round_keys = key_expansion(key_bytes)
+    blocks = text_to_blocks(plaintext)
+    cipher_blocks = []
+    
+    for block in blocks:
+        cipher_state = encrypt_block(block, round_keys)
+        cipher_blocks.append(bytes(cipher_state).hex().upper())
+        
+    return "".join(cipher_blocks)
 
-    return _state_to_bytes(state)
+def decrypt_aes(ciphertext_hex, key_hex):
+    key_bytes = bytes.fromhex(key_hex)
+    round_keys = key_expansion(key_bytes)
+    
+    # Découper en blocs de 32 caractères hex (16 octets)
+    blocks_hex = [ciphertext_hex[i:i+32] for i in range(0, len(ciphertext_hex), 32)]
+    plain_blocks = []
+    
+    for block_h in blocks_hex:
+        block_bytes = list(bytes.fromhex(block_h))
+        plain_state = decrypt_block(block_bytes, round_keys)
+        plain_blocks.append(plain_state)
+        
+    return blocks_to_text(plain_blocks)
 
-def _decrypt_block(block: bytes, round_keys: list) -> bytes:
-    """Déchiffre un bloc de 16 octets avec les sous-clés données."""
-    Nr = len(round_keys) - 1
-    state = _bytes_to_state(block)
+# =====================================================================
+# MENU INTERACTIF
+# =====================================================================
 
-    state = _add_round_key(state, round_keys[Nr])
+def verifier_cle(cle):
+    """Vérifie si la clé est valide (32 caractères Hexadécimaux pour AES-128)."""
+    if len(cle) != 32:
+        return False
+    try:
+        int(cle, 16)
+        return True
+    except ValueError:
+        return False
 
-    for r in range(Nr - 1, 0, -1):
-        state = _inv_shift_rows(state)
-        state = _inv_sub_bytes(state)
-        state = _add_round_key(state, round_keys[r])
-        state = _inv_mix_columns(state)
-
-    # Tour initial inverse (sans InvMixColumns)
-    state = _inv_shift_rows(state)
-    state = _inv_sub_bytes(state)
-    state = _add_round_key(state, round_keys[0])
-
-    return _state_to_bytes(state)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# PADDING PKCS#7
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _pkcs7_pad(data: bytes, block_size: int = 16) -> bytes:
-    """Ajoute un rembourrage PKCS#7."""
-    pad_len = block_size - (len(data) % block_size)
-    return data + bytes([pad_len] * pad_len)
-
-def _pkcs7_unpad(data: bytes) -> bytes:
-    """Retire le rembourrage PKCS#7."""
-    if not data:
-        raise ValueError("Données vides.")
-    pad_len = data[-1]
-    if pad_len == 0 or pad_len > 16:
-        raise ValueError("Rembourrage PKCS#7 invalide.")
-    if data[-pad_len:] != bytes([pad_len] * pad_len):
-        raise ValueError("Rembourrage PKCS#7 corrompu.")
-    return data[:-pad_len]
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# CLASSE PRINCIPALE AES (mode CBC)
-# ─────────────────────────────────────────────────────────────────────────────
-
-class AES:
-    """
-    AES en mode CBC avec IV aléatoire et rembourrage PKCS#7.
-
-    Paramètres :
-        key (bytes) : clé de 16, 24 ou 32 octets (AES-128/192/256).
-
-    Méthodes :
-        encrypt(plaintext: str | bytes) -> bytes
-            Chiffre et retourne : IV (16 octets) || chiffré
-        decrypt(ciphertext: bytes) -> str
-            Déchiffre et retourne le texte clair UTF-8.
-    """
-
-    def __init__(self, key: bytes):
-        if len(key) not in (16, 24, 32):
-            raise ValueError("La clé doit faire 16, 24 ou 32 octets.")
-        self._round_keys = _key_expansion(key)
-        self._Nr = len(self._round_keys) - 1
-
-    # ── Chiffrement CBC ──────────────────────────────────────────────────────
-    def encrypt(self, plaintext) -> bytes:
-        """
-        Chiffre le texte clair (str ou bytes) en mode CBC.
-        Retourne IV || ciphertext.
-        """
-        if isinstance(plaintext, str):
-            plaintext = plaintext.encode('utf-8')
-
-        iv = os.urandom(16)
-        padded = _pkcs7_pad(plaintext)
-        ciphertext = bytearray()
-        prev = iv
-
-        for i in range(0, len(padded), 16):
-            block = bytes(a ^ b for a, b in zip(padded[i:i+16], prev))
-            enc   = _encrypt_block(block, self._round_keys)
-            ciphertext.extend(enc)
-            prev = enc
-
-        return iv + bytes(ciphertext)
-
-    # ── Déchiffrement CBC ────────────────────────────────────────────────────
-    def decrypt(self, ciphertext: bytes) -> str:
-        """
-        Déchiffre IV || ciphertext (mode CBC).
-        Retourne le texte clair en UTF-8.
-        """
-        if len(ciphertext) < 32 or (len(ciphertext) - 16) % 16 != 0:
-            raise ValueError("Longueur de texte chiffré invalide.")
-
-        iv         = ciphertext[:16]
-        ciphertext = ciphertext[16:]
-        plaintext  = bytearray()
-        prev       = iv
-
-        for i in range(0, len(ciphertext), 16):
-            block = ciphertext[i:i+16]
-            dec   = _decrypt_block(block, self._round_keys)
-            plaintext.extend(a ^ b for a, b in zip(dec, prev))
-            prev = block
-
-        return _pkcs7_unpad(bytes(plaintext)).decode('utf-8')
-
-'''
-# ─────────────────────────────────────────────────────────────────────────────
-# DÉMONSTRATION
-# ─────────────────────────────────────────────────────────────────────────────
+def main():
+    while True:
+        print("\n" + "="*50)
+        print(" OUTIL DE CHIFFREMENT AES-128 (Advanced Encryption)")
+        print("="*50)
+        print("1. Chiffrer un texte clair")
+        print("2. Déchiffrer un texte codé")
+        print("3. Quitter")
+        
+        choix = input("\nVotre choix (1, 2 ou 3) : ").strip()
+        
+        if choix == '1':
+            print("\n--- CHIFFREMENT ---")
+            texte = input("Entrez le texte à chiffrer : ")
+            cle = input("Entrez une clé secrète (32 caractères Hexadécimaux, ex: 0123456789ABCDEFFEDCBA9876543210) : ").strip().upper()
+            
+            if not verifier_cle(cle):
+                print("[Erreur] La clé doit comporter exactement 32 caractères hexadécimaux (0-9, A-F) pour AES-128.")
+                continue
+                
+            resultat = encrypt_aes(texte, cle)
+            print(f"\n> Texte chiffré (Hex) : {resultat}")
+            
+        elif choix == '2':
+            print("\n--- DÉCHIFFREMENT ---")
+            code_hex = input("Entrez le code chiffré (en Hexadécimal) : ").strip().upper()
+            cle = input("Entrez la clé secrète (32 caractères Hexadécimaux) : ").strip().upper()
+            
+            if not verifier_cle(cle):
+                print("[Erreur] La clé doit comporter exactement 32 caractères hexadécimaux.")
+                continue
+            
+            # Vérification basique du code chiffré (multiple de 32 caractères hex = 16 octets)
+            if len(code_hex) % 32 != 0:
+                print("[Erreur] Le code chiffré n'est pas valide (la longueur n'est pas un multiple de 32 caractères).")
+                continue
+                
+            resultat = decrypt_aes(code_hex, cle)
+            print(f"\n> Texte déchiffré (Clair) : {resultat}")
+            
+        elif choix == '3':
+            print("Fermeture du programme. À bientôt !")
+            break
+            
+        else:
+            print("Choix invalide. Veuillez entrer 1, 2 ou 3.")
 
 if __name__ == "__main__":
-    print("=" * 60)
-    print("  AES Python pur — Démonstration (CBC, PKCS#7)")
-    print("=" * 60)
-
-    # ── AES-128 ──────────────────────────────────────────────────────────────
-    key128 = b"cle_secrete_16b!"          # 16 octets
-    aes128 = AES(key128)
-    message = "Bonjour, voici un message secret en français !"
-
-    print(f"\n[AES-128]")
-    print(f"  Clé      : {key128}")
-    print(f"  Message  : {message}")````
-
-    chiffre = aes128.encrypt(message)
-    print(f"  Chiffré  : {chiffre.hex()}")
-
-    clair = aes128.decrypt(chiffre)
-    print(f"  Déchiffré: {clair}")
-    print(f"  OK       : {message == clair}")
-
-    # ── AES-192 ──────────────────────────────────────────────────────────────
-    key192 = b"cle_secrete_24_octets!!!"  # 24 octets
-    aes192 = AES(key192)
-    print(f"\n[AES-192]")
-    chiffre192 = aes192.encrypt(message)
-    print(f"  Chiffré  : {chiffre192.hex()}")
-    print(f"  Déchiffré: {aes192.decrypt(chiffre192)}")
-
-    # ── AES-256 ──────────────────────────────────────────────────────────────
-    key256 = b"cle_tres_secrete_de_32_octets!!!"  # 32 octets
-    aes256 = AES(key256)
-    print(f"\n[AES-256]")
-    chiffre256 = aes256.encrypt(message)
-    print(f"  Chiffré  : {chiffre256.hex()}")
-    print(f"  Déchiffré: {aes256.decrypt(chiffre256)}")
-
-    # ── Test avec clé et texte personnalisés ─────────────────────────────────
-    print("\n" + "=" * 60)
-    print("  Test interactif")
-    print("=" * 60)
-    ma_cle = b"Ma_Cle_Secrete!!"   # exactement 16 octets
-    mon_texte = "AES implémenté sans librairie — 100 % Python pur."
-    aes = AES(ma_cle)
-    c = aes.encrypt(mon_texte)
-    print(f"  Texte original : {mon_texte}")
-    print(f"  Chiffré (hex)  : {c.hex()}")
-    print(f"  Déchiffré      : {aes.decrypt(c)}")
-    print("\nDone ✓")
-'''
+    main()
