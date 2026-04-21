@@ -1,0 +1,29 @@
+---
+- name: ICMP Ping Network Devices
+  hosts: localhost
+  gather_facts: false
+  vars:
+    targets:
+      - { name: 'R1', ip: '192.168.10.1' }
+      - { name: 'R2 (Interface 1)', ip: '192.168.10.254' }
+      - { name: 'DNS', ip: '192.168.10.2' }
+      - { name: 'Web01', ip: '192.168.10.11' }
+      # - { name: 'Client', ip: '10.0.2.15' }
+  tasks:
+    - name: Execute ping command (2 packets per host)
+      ansible.builtin.command: ping -c 2 {{ item.ip }}
+      register: ping_results
+      ignore_errors: true
+      loop: "{{ targets }}"
+      # Hides the messy loop output in the terminal
+      loop_control:
+        label: "{{ item.name }} ({{ item.ip }})"
+
+    - name: Display Reachability Status
+      ansible.builtin.debug:
+        msg: >-
+          {{ item.item.name }} ({{ item.item.ip }}) is 
+          {{ 'REACHABLE' if item.rc == 0 else 'UNREACHABLE' }}
+      loop: "{{ ping_results.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
